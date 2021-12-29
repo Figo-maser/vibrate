@@ -9,6 +9,7 @@
 #define Led_pwrON     1
 #define Led_OFF       2
 #define Led_twinkle   3
+#define Led_green_on  4
 
 #define LED_STATUS_GPIO_PORT    	GPIOB			              /* GPIO¶Ë¿Ú */
 #define LED_STATUS_GPIO_CLK 	    RCC_APB2Periph_GPIOB		/* GPIO¶Ë¿ÚÊ±ÖÓ */

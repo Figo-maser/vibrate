@@ -26,9 +26,9 @@
 #include <stdlib.h>
 #include <math.h>
 /******************************* 全局变量 ************************************/
-#define  High_frequency   70-1
-#define  Mid_frequency    50-1
-#define  Low_frequency    30-1
+#define  High_frequency   65-1
+#define  Mid_frequency    55-1
+#define  Low_frequency    45-1
 #define  Off_frequency    0
 
 
@@ -102,16 +102,17 @@ void Upload_to_APP(uint8_t att)
 uint8_t single_NOT_zero =0;
 uint16_t result;
 uint16_t vibration_result = 0;
+uint16_t vibration_fre =Low_frequency;
 uint16_t k = 0;
-uint8_t attention_buffer[5] = {0}; // Sum of 5 attention values
+uint8_t attention_buffer[50] = {0}; // Sum of 5 attention values
 float average5_attention = 0; // Average of 5 attention values
 uint16_t attention_loop = 0;	
-uint16_t attention_loop_num = 5 ;
+uint16_t attention_loop_num = 1 ;
 uint16_t AllResult[5000] = {0};
 uint16_t allresult_count = 0;
 
 //uint8_t  checksum = 0;
-uint16_t Test_scope = 800;                //******可调变量
+uint16_t Test_scope = 10;                //******可调变量
 float Threshold = 0.7;                //******可调变量
 
 //需要读取的信息变量
@@ -153,12 +154,12 @@ uint16_t KNN(float testData, uint16_t K)
                           28.629629629629630, 40.321428571428570, 32.107142857142854, 28.285714285714285, 33.607142857142854
                          };
 
-
-  uint16_t rowNum = (sizeof(trainData) / sizeof(uint16_t));
+	uint16_t rowNum = 30;
+  //uint16_t rowNum = (sizeof(trainData) / sizeof(uint16_t));
 	uint16_t i;			
 												 
 	/*数组大小待解决需要和traindata同步修改*/
-  uint16_t Label_Emotion[60] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}; //==============Need to be changed with trainData================//
+  uint16_t Label_Emotion[30] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}; //==============Need to be changed with trainData================//
   float Dist[30][2];
   uint16_t KClass[K_num] = {0};
   uint16_t countClass1 = 0;
@@ -258,6 +259,7 @@ void read_serial_data()
 							single_NOT_zero++;
 							if(single_NOT_zero>=10)
 							{
+								Set_pwm_dutycycle(0);
 								Led_station = Led_twinkle ;
 								time =0 ;
 								
@@ -265,18 +267,35 @@ void read_serial_data()
 						}
 						else
 						{
-							Led_station = Led_pwrON;
-							time =0 ;
+							if(Led_station != Led_green_on)
+							{
+								Led_station = Led_green_on;
+								time =0 ;
+							}
+							
 						}
 						attention = payloadData[29];
 						Upload_to_APP(attention); // 上传 attention 值
 						meditation = payloadData[31];
 						
+						if((signalquality==0)||(attention!=0)||(meditation!=0))//信号正常
+					{
 						attention_buffer[attention_loop] = attention;                                    
             attention_loop = attention_loop + 1;
+						printf("attention_loop:%d ",attention_loop);
+						
 						if (attention_loop == attention_loop_num)
 						{
-							average5_attention = (attention_buffer[0] + attention_buffer[1] + attention_buffer[2] + attention_buffer[3] + attention_buffer[4]) / 5;
+							printf("attention_loop_num:%d ",attention_loop_num);
+							int sum_attention=0;
+							for(int i=0; i < attention_loop;i++)
+							{
+							
+								sum_attention=sum_attention+attention_buffer[i];
+								
+							}
+							average5_attention = sum_attention/attention_loop;
+							sum_attention=0;
 							printf("Average attention value is:%f ",average5_attention);
 //						printf(average5_attention, DEC);
 							printf("\n");
@@ -289,9 +308,14 @@ void read_serial_data()
 							printf("\n");
 							allresult_count = allresult_count + 1;
 						}
+						printf("Test_scope: %d",Test_scope);
+						printf("allresult_count: %d",allresult_count);
+						
+					}
 						
 						if (allresult_count == Test_scope) 
-						{
+						{							
+							printf("allresult_count: %d",allresult_count);
 							uint16_t result_length = (sizeof(AllResult) / sizeof(uint16_t));
 
 							for ( i = 0; i < result_length; i++)
@@ -309,6 +333,13 @@ void read_serial_data()
 									vibration_result = 1;
 								}
 							}
+							if (vibration_result== 2) 
+							{
+									Set_vibrate(2,vibration_fre);
+								printf("vibration_fre: %d",vibration_fre);
+							
+							}
+							
 							printf("vibration_result: %d",vibration_result);
 //							printf(vibration_result);
 							printf("\n");
@@ -338,6 +369,7 @@ void ble_cmd(void)
 			Uart2RX.rec_finish= 0;
 			if((Uart2RX.RXBuf[0] == 0xaa) && (Uart2RX.RXBuf[1] == 0x00) )
 			{
+				//printf("Test_scrope = %d",Uart2RX.receive_len);
 //				check_sum = crc_check(Uart2RX.RXBuf,Uart2RX.receive_len-1);
 				if(0XFF == Uart2RX.RXBuf[Uart2RX.receive_len-1])
 				{
@@ -364,19 +396,24 @@ void ble_cmd(void)
 											break;
 						case 0x03 : 
 											Set_pwm_dutycycle(Low_frequency);
-											//Set_vibrate(2,Low_frequency);
+											Set_vibrate(2,Low_frequency);
+											vibration_fre=Low_frequency;
+						
 											break;
 						case 0x04 :	  
 											Set_pwm_dutycycle(Mid_frequency);
-											//Set_vibrate(2,Mid_frequency);
+											Set_vibrate(2,Mid_frequency);
+											vibration_fre=Mid_frequency;
 											break;
 						case 0x05:
 											Set_pwm_dutycycle(High_frequency);
-											//Set_vibrate(2,High_frequency);
+											Set_vibrate(2,High_frequency);
+											vibration_fre=High_frequency;
 											break;
 						case 0x07: 
 											attention_loop_num = (Uart2RX.RXBuf[Uart2RX.receive_len-3]<<8) + Uart2RX.RXBuf[Uart2RX.receive_len-2];
-											break;
+											printf("attention_loop_num = %d",attention_loop_num);
+						break;
 									
 					}
 				}
@@ -467,9 +504,12 @@ void ble_cmd(void)
 	while(1)
 	{
 		//Key_Scan();
-		ble_cmd();
-		read_serial_data();
-		delay_ms(100);
+		if(device_setting.power_flag == 1) //开机状态
+		{
+			ble_cmd();
+			read_serial_data();
+		}
+		delay_ms(1000);
 	}
  }
 

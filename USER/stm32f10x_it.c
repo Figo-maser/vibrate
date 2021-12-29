@@ -289,6 +289,10 @@ void  GENERAL_TIM_IRQHandler (void)
 			}
 
 		}
+		else if(Led_station == Led_green_on)
+		{
+			LED_STATUS_ON;
+		}
 		time_20ms ++;
 		if(time_20ms>=200)
 		{
